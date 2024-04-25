@@ -1,74 +1,84 @@
-// Importar las dependencias necesarias
-import axios from 'axios';
-import express from 'express';
-import { v4 as uuidv4 } from 'uuid';
-import moment from 'moment';
-import _ from 'lodash';
+// Importa las dependencias necesarias
+import axios from "axios";
+import express from "express";
+import { v4 as uuidv4 } from "uuid";
+import moment from "moment";
+import _ from "lodash";
+import chalk from "chalk";
+
+
 // Crear una instancia de la aplicación Express
 const app = express();
 
-// Middleware para manejar solicitudes JSON
-app.use(express.json());
-
-let usuarios = [];
-
-function saveOneUser(dataUser) {
-    const { gender, name:{first, last} } = dataUser
-
-    usuarios.push({gender, first, last, ID: uuidv4().slice(0, 6), Timestamp: moment().format('LL')})
-
-        console.log(usuarios)
-        return _.partition(usuarios, e => e.gender === 'male')
-}
-  
+let users = [];
 
 // Ruta raíz, devuelve un mensaje de bienvenida
-app.get('/', (req, res) => {
-    res.send('¡Bienvenido a la aplicación de citas médicas!');
+app.get("/", (req, res) => {
+    res.send("¡Bienvenido a la aplicación de citas médicas!");
 });
 
-// Ruta para registrar nuevos usuarios
-app.post('/register', async (req, res) => {
+app.get("/usuarios", async (req, res) => {
+    /* 1. El registro de los usuarios debe hacerse con la API Random User usando axios para
+  consultar la data. (2 Puntos) */
 
-});
+    const { data } = await axios.get("https://randomuser.me/api/");
+    const {
+        gender,
+        name: { first, last },
+    } = data.results[0];
 
-// Ruta para consultar todos los usuarios registrados
-app.get('/usuarios', (req, res) => {
-    axios.get( 'https://randomuser.me/api/')
-    
-    .then(response => {
+    /* 2. Cada usuario registrado debe tener un campo id único generado por el paquete UUID
+  (2 Puntos) */
+    const id = uuidv4().slice(0, 8);
 
-        console.log(response.data.results[0]);
-        const filteredData = saveOneUser(response.data.results[0]);
-        let plantilla = `
-        <div class="card">
-            <h5>${gender}</h5>
-            <p>Nombre: ${userData.name}</p>
-            <p>Email: ${userData.email}</p>
-            <!-- Agrega aquí más datos si los necesitas -->
-        </div>
-    `;
+    /* 3. Cada usuario debe tener un campo timestamp almacenando la fecha de registro
+  obtenida y formateada por el paquete Moment. (2 Puntos) */
+    const timestamp = moment().format("LL");
 
+    users.push({ gender, first, last, id, timestamp });
 
-        res.send(plantilla);
-    })
-    .catch(error => console.log(error));
-    
-    })
+    // Divide el arreglo de usuarios en dos, separando los usuarios por sexo
+    /* 4. Por cada consulta realizada al servidor, se debe devolverle al cliente una lista con los
+  datos de todos los usuarios registrados usando Lodash para dividir el arreglo en 2
+  separando los usuarios por sexo. (2 Puntos) */
+    let [maleUsers, femaleUsers] = _.partition(users, { gender: "male" });
 
+    let malePlantilla = "<h2>Hombres</h2><ol>";
+    for (let user of maleUsers) {
+        malePlantilla += `
+            <li>
+                Nombre: ${user.first} ${user.last} - Género: ${user.gender} - ID: ${user.id} - Fecha: ${user.timestamp}
+            </li>
+        `;
+    }
+    malePlantilla += "</ol>";
 
-// Middleware para manejar errores 404 (recurso no encontrado)
-app.use((req, res, next) => {
-    res.status(404).send('Recurso no encontrado');
+    let femalePlantilla = "<h2>Mujeres</h2><ol>";
+    for (let user of femaleUsers) {
+        femalePlantilla += `
+            <li>
+                Nombre: ${user.first} ${user.last} - Género: ${user.gender} - ID: ${user.id} - Fecha: ${user.timestamp}
+            </li>
+        `;
+    }
+    femalePlantilla += "</ol>";
+
+    // 5. Imprime la lista de usuarios en la consola del servidor
+    console.log(chalk.blue.bgWhite("Lista de usuarios:"));
+    console.log(chalk.blue.bgWhite(JSON.stringify(maleUsers, null, 2)));
+    console.log(chalk.blue.bgWhite(JSON.stringify(femaleUsers, null, 2)));
+
+    res.send(`${malePlantilla}${femalePlantilla}`);
 });
 
 // Middleware para manejar errores 500 (error interno del servidor)
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).send('Error interno del servidor');
+    res.status(500).send("Error interno del servidor");
 });
 
-// Iniciar el servidor y escuchar en un puerto específico
+// Iniciar el servidor y escucha puerto 3000
+/* 6. El servidor debe ser levantado con el comando Nodemon. (1 Punto) */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor escuchando en el puerto ${PORT}`);
